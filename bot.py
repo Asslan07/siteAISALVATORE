@@ -26,15 +26,21 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 # --- выбор хранилища ---
 async def get_storage():
-    try:
-        storage = RedisStorage.from_url("redis://localhost")
-        # пробуем подключиться
-        await storage.redis.ping()
-        logging.info("✅ Подключено Redis-хранилище FSM")
-        return storage
-    except Exception as e:
-        logging.warning(f"⚠️ Redis недоступен, используется MemoryStorage ({e})")
-        return MemoryStorage()
+    # Scalingo автоматически создает эту переменную, если вы добавили аддон Redis
+    redis_url = os.getenv("SCALINGO_REDIS_URL") 
+    
+    if redis_url:
+        try:
+            storage = RedisStorage.from_url(redis_url)
+            await storage.redis.ping()
+            logging.info(f"✅ Подключено Redis-хранилище (Scalingo)")
+            return storage
+        except Exception as e:
+            logging.warning(f"⚠️ Ошибка Redis на Scalingo: {e}")
+    
+    # Если переменной нет или ошибка — используем память
+    logging.warning("⚠️ Redis не найден, используется MemoryStorage")
+    return MemoryStorage()
 
 
 # --- состояния ---
@@ -177,3 +183,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
